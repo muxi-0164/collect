@@ -67,7 +67,7 @@
         <!-- Modals -->
         <div id="modal-container" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeModal()"></div>
-            <div class="bg-white rounded-[2.5rem] w-full max-w-md p-8 relative shadow-2xl scale-in" id="modal-body">
+            <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-8 relative shadow-2xl scale-in" id="modal-body">
                 <!-- Modal content -->
             </div>
         </div>
@@ -313,6 +313,12 @@
                 await signInWithPopup(auth, googleProvider);
             } catch (e) {
                 console.error("Login failed", e);
+                // 檢查是否為 auth/unauthorized-domain 錯誤，如果是，則彈出指引視窗
+                if (e.code === 'auth/unauthorized-domain') {
+                    showDomainErrorModal(window.location.hostname);
+                } else {
+                    alert("登入失敗: " + e.message);
+                }
             }
         };
 
@@ -369,6 +375,44 @@
                 };
             }
         };
+
+        // 彈出錯誤指引 Modal
+        function showDomainErrorModal(currentHostname) {
+            const modal = document.getElementById('modal-container');
+            const body = document.getElementById('modal-body');
+            body.innerHTML = `
+                <div class="flex items-center space-x-2 text-amber-500 mb-4">
+                    <i data-lucide="shield-alert" class="w-8 h-8"></i>
+                    <h3 class="text-xl font-bold">網域未授權登入</h3>
+                </div>
+                <div class="space-y-4 text-slate-600 text-sm leading-relaxed">
+                    <p>Firebase 為了安全考量，目前拒絕了來自此網域的 Google 登入。請按照以下步驟手動將此網域加入授權名單中：</p>
+                    
+                    <div class="bg-slate-50 p-4 rounded-2xl space-y-2">
+                        <p class="font-bold text-xs text-slate-400">目前網域 (請複製它)</p>
+                        <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-100">
+                            <span class="font-mono text-xs select-all break-all" id="domain-string">${currentHostname}</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <p class="font-bold text-slate-800">🛠️ 設定步驟：</p>
+                        <ol class="list-decimal pl-5 space-y-1 text-xs">
+                            <li>前往您的 <a href="https://console.firebase.google.com/" target="_blank" class="text-violet-600 font-bold underline">Firebase 主控台</a>。</li>
+                            <li>選擇您的專案 <b>collect-91f4b</b>。</li>
+                            <li>點擊左側選單的 <b>Authentication</b>（驗證），然後切換到 <b>Settings</b>（設定）標籤。</li>
+                            <li>點擊左下方的 <b>Authorized domains</b>（授權網域）區塊。</li>
+                            <li>點擊 <b>Add domain</b>（新增網域），將上方複製的網域貼上並儲存即可！</li>
+                        </ol>
+                    </div>
+                </div>
+                <button onclick="window.closeModal()" class="w-full mt-6 bg-slate-100 py-3.5 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all">
+                    我明白了
+                </button>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
 
         window.closeModal = () => {
             document.getElementById('modal-container').classList.add('hidden');
