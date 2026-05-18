@@ -82,7 +82,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuration ---
@@ -197,13 +197,22 @@
 
         function renderProfile() {
             const container = document.getElementById('user-profile');
+            const isAnon = currentUser.isAnonymous;
             container.innerHTML = `
                 <div class="text-right hidden sm:block">
-                    <p class="text-sm font-bold">${currentUser.displayName || (currentUser.isAnonymous ? '訪客模式' : '未具名')}</p>
-                    <p class="text-[10px] text-slate-400">UID: ${currentUser.uid.substring(0, 6)}...</p>
+                    <div class="flex items-center justify-end space-x-1">
+                        <p class="text-sm font-bold text-slate-800">${currentUser.displayName || (isAnon ? '訪客收藏家' : '未具名')}</p>
+                        ${isAnon ? `
+                            <button onclick="window.editNickname()" class="text-violet-500 hover:text-violet-700 p-0.5 transition-colors" title="修改暱稱">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <p class="text-[10px] text-slate-400">UID: ${currentUser.uid.substring(0, 6)}... (${isAnon ? '訪客' : '成員'})</p>
                 </div>
                 <img src="${currentUser.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + currentUser.uid}" class="w-10 h-10 rounded-xl border shadow-sm">
             `;
+            lucide.createIcons();
         }
 
         function renderPage() {
@@ -226,7 +235,7 @@
                             <h2 class="text-xl font-bold mb-6">最近加入</h2>
                             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 ${collectionsData.slice(0, 4).map(item => `
-                                    <div class="bg-white p-3 rounded-3xl border border-slate-100 group shadow-sm">
+                                    <div class="bg-white p-3 rounded-3xl border border-slate-100 group shadow-sm animate-fade-in">
                                         <div class="relative rounded-2xl overflow-hidden aspect-square mb-3">
                                             <img src="${item.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform">
                                         </div>
@@ -234,7 +243,12 @@
                                         <p class="text-violet-600 font-bold px-1">$${item.value?.toLocaleString()}</p>
                                     </div>
                                 `).join('')}
-                                ${collectionsData.length === 0 ? '<p class="col-span-full text-slate-400 text-center py-12">快去新增您的第一件寶物吧！</p>' : ''}
+                                ${collectionsData.length === 0 ? `
+                                    <div class="col-span-full bg-slate-50/50 border border-dashed border-slate-100 rounded-[2rem] py-12 text-center text-slate-400">
+                                        <i data-lucide="sparkles" class="w-8 h-8 mx-auto mb-2 text-violet-300"></i>
+                                        <p class="text-sm">快去新增您的第一件寶物吧！</p>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -244,7 +258,7 @@
                     <div class="space-y-6">
                         <div class="flex justify-between items-center">
                             <h2 class="text-2xl font-bold">收藏寶庫</h2>
-                            <button onclick="window.showAddModal('collection')" class="bg-violet-600 text-white px-6 py-3 rounded-2xl flex items-center font-bold text-sm shadow-lg shadow-violet-200">
+                            <button onclick="window.showAddModal('collection')" class="bg-violet-600 text-white px-6 py-3 rounded-2xl flex items-center font-bold text-sm shadow-lg shadow-violet-200 hover:bg-violet-700 transition-all">
                                 <i data-lucide="plus" class="w-4 h-4 mr-2"></i> 新增收藏
                             </button>
                         </div>
@@ -253,13 +267,13 @@
                                 <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
                                     <div class="relative h-44 rounded-2xl overflow-hidden mb-4">
                                         <img src="${item.img}" class="w-full h-full object-cover">
-                                        <button onclick="window.analyzeItem('${item.id}')" class="absolute top-3 right-3 bg-white/90 backdrop-blur p-2 rounded-xl text-violet-600 shadow-sm">
+                                        <button onclick="window.analyzeItem('${item.id}')" class="absolute top-3 right-3 bg-white/90 backdrop-blur p-2 rounded-xl text-violet-600 shadow-sm hover:scale-105 transition-transform">
                                             <i data-lucide="sparkles" class="w-4 h-4"></i>
                                         </button>
                                     </div>
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <h4 class="font-bold text-lg">${item.name}</h4>
+                                            <h4 class="font-bold text-lg text-slate-800">${item.name}</h4>
                                             <p class="text-slate-400 text-sm">收藏項目</p>
                                         </div>
                                         <button onclick="window.deleteItem('${item.id}', 'collection')" class="text-rose-300 hover:text-rose-500 transition-colors">
@@ -278,8 +292,8 @@
                 container.innerHTML = `
                     <div class="space-y-6">
                         <div class="flex justify-between items-center">
-                            <h2 class="text-2xl font-bold">願望清單</h2>
-                            <button onclick="window.showAddModal('wishlist')" class="bg-slate-800 text-white px-6 py-3 rounded-2xl flex items-center font-bold text-sm shadow-lg">
+                            <h2 class="text-2xl font-bold">願願清單</h2>
+                            <button onclick="window.showAddModal('wishlist')" class="bg-slate-800 text-white px-6 py-3 rounded-2xl flex items-center font-bold text-sm shadow-lg hover:bg-slate-900 transition-all">
                                 <i data-lucide="plus" class="w-4 h-4 mr-2"></i> 新增願望
                             </button>
                         </div>
@@ -290,7 +304,7 @@
                                         <h4 class="font-bold text-slate-800">${item.name}</h4>
                                         <p class="text-sm text-slate-400">目標價格: $${item.targetPrice?.toLocaleString()}</p>
                                     </div>
-                                    <button onclick="window.deleteItem('${item.id}', 'wishlist')" class="text-slate-200 hover:text-rose-400 p-2">
+                                    <button onclick="window.deleteItem('${item.id}', 'wishlist')" class="text-slate-200 hover:text-rose-400 p-2 transition-colors">
                                         <i data-lucide="trash-2" class="w-5 h-5"></i>
                                     </button>
                                 </div>
@@ -313,7 +327,6 @@
                 await signInWithPopup(auth, googleProvider);
             } catch (e) {
                 console.error("Login failed", e);
-                // 檢查是否為 auth/unauthorized-domain 錯誤，如果是，則彈出指引視窗
                 if (e.code === 'auth/unauthorized-domain') {
                     showDomainErrorModal(window.location.hostname);
                 } else {
@@ -325,6 +338,42 @@
         window.logout = async () => {
             await signOut(auth);
             await signInAnonymously(auth);
+        };
+
+        window.editNickname = () => {
+            const modal = document.getElementById('modal-container');
+            const body = document.getElementById('modal-body');
+            body.innerHTML = `
+                <h3 class="text-2xl font-bold mb-4 text-slate-800">設定您的專屬暱稱</h3>
+                <p class="text-sm text-slate-500 mb-6">自訂一個具有儀式感的暱稱，平台與 AI 分析報告都將以這個名稱稱呼您！</p>
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-slate-400 ml-2">我的暱稱</label>
+                        <input type="text" id="nickname-input" class="w-full bg-slate-50 border-transparent rounded-2xl py-4 px-5 outline-none focus:bg-white focus:ring-2 focus:ring-violet-100" placeholder="例如：首席收藏家" value="${currentUser.displayName || ''}">
+                    </div>
+                </div>
+                <button onclick="window.saveNickname()" class="w-full mt-8 bg-violet-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-violet-100 active:scale-95 transition-all">
+                    確定儲存
+                </button>
+            `;
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.saveNickname = async () => {
+            const input = document.getElementById('nickname-input');
+            const newName = input ? input.value.trim() : '';
+            if (!newName) return;
+            
+            try {
+                await updateProfile(auth.currentUser, { displayName: newName });
+                currentUser = auth.currentUser;
+                renderProfile();
+                window.closeModal();
+            } catch (e) {
+                console.error("Failed to update nickname", e);
+                alert("暱稱儲存失敗，請重試。");
+            }
         };
 
         window.showAddModal = (type) => {
@@ -369,7 +418,7 @@
                     const reader = new FileReader();
                     reader.onload = () => {
                         newItemImg = reader.result;
-                        document.getElementById('preview-box').innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover">`;
+                        document.getElementById('preview-box').innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover animate-fade-in">`;
                     };
                     reader.readAsDataURL(e.target.files[0]);
                 };
@@ -381,33 +430,38 @@
             const modal = document.getElementById('modal-container');
             const body = document.getElementById('modal-body');
             body.innerHTML = `
-                <div class="flex items-center space-x-2 text-amber-500 mb-4">
+                <div class="flex items-center space-x-2 text-amber-500 mb-4 animate-bounce">
                     <i data-lucide="shield-alert" class="w-8 h-8"></i>
-                    <h3 class="text-xl font-bold">網域未授權登入</h3>
+                    <h3 class="text-xl font-bold">網域安全驗證指引</h3>
                 </div>
                 <div class="space-y-4 text-slate-600 text-sm leading-relaxed">
-                    <p>Firebase 為了安全考量，目前拒絕了來自此網域的 Google 登入。請按照以下步驟手動將此網域加入授權名單中：</p>
+                    <p>因 Firebase 安全政策限制，目前的 Google 彈出登入需要手動將此臨時網域新增至您的 Firebase 主控台中。</p>
                     
+                    <div class="bg-violet-50/50 p-4 rounded-2xl space-y-2 border border-violet-100">
+                        <p class="font-bold text-xs text-violet-700">💡 溫馨提醒：不必登入也能使用！</p>
+                        <p class="text-xs text-slate-600">您目前使用的是獨立且安全的「訪客通道」，所有的收藏功能與雲端儲存皆已啟用。您可以直接點擊右上角自訂個人暱稱！</p>
+                    </div>
+
                     <div class="bg-slate-50 p-4 rounded-2xl space-y-2">
-                        <p class="font-bold text-xs text-slate-400">目前網域 (請複製它)</p>
+                        <p class="font-bold text-xs text-slate-400">目前運行的網域（請點擊複製）</p>
                         <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-100">
-                            <span class="font-mono text-xs select-all break-all" id="domain-string">${currentHostname}</span>
+                            <span class="font-mono text-xs select-all break-all text-violet-600" id="domain-string">${currentHostname}</span>
                         </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <p class="font-bold text-slate-800">🛠️ 設定步驟：</p>
-                        <ol class="list-decimal pl-5 space-y-1 text-xs">
+                    <div class="space-y-2 text-xs">
+                        <p class="font-bold text-slate-800 text-sm">🛠️ 如何啟用 Google 登入？</p>
+                        <ol class="list-decimal pl-5 space-y-1 text-slate-500">
                             <li>前往您的 <a href="https://console.firebase.google.com/" target="_blank" class="text-violet-600 font-bold underline">Firebase 主控台</a>。</li>
                             <li>選擇您的專案 <b>collect-91f4b</b>。</li>
-                            <li>點擊左側選單的 <b>Authentication</b>（驗證），然後切換到 <b>Settings</b>（設定）標籤。</li>
-                            <li>點擊左下方的 <b>Authorized domains</b>（授權網域）區塊。</li>
-                            <li>點擊 <b>Add domain</b>（新增網域），將上方複製的網域貼上並儲存即可！</li>
+                            <li>點擊左側 <b>Authentication</b>（驗證），然後切換至 <b>Settings</b>（設定）標籤。</li>
+                            <li>展開左下方的 <b>Authorized domains</b>（授權網域）區塊。</li>
+                            <li>點擊 <b>Add domain</b>，將上方複製的網域貼上並儲存即可！</li>
                         </ol>
                     </div>
                 </div>
                 <button onclick="window.closeModal()" class="w-full mt-6 bg-slate-100 py-3.5 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all">
-                    我明白了
+                    我知道了，先使用訪客模式
                 </button>
             `;
             modal.classList.remove('hidden');
